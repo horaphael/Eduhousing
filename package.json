@@ -1,7 +1,11 @@
 {
   "name": "eduhousing",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
@@ -12,5 +16,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.1",
+    "prettier": "^3.9.6"
   }
 }
