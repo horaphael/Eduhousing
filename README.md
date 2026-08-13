@@ -15,10 +15,55 @@ cp .env.example .env
 nvm use
 npm install
 docker compose up -d
+npm run migrate
+npm run seed
 npm run dev
 ```
 
 Web: http://localhost:3000 · API: http://localhost:3001
+
+## Available scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Starts the API (port 3001) and the Next.js web app (port 3000) simultaneously |
+| `npm run build` | Builds all workspaces (API, web, shared) for production |
+| `npm run lint` | Runs ESLint on the entire codebase |
+| `npm run format` | Formats all files with Prettier |
+| `npm test` | Runs tests in all workspaces |
+| `npm run migrate` | Runs database migrations (creates/updates tables in PostgreSQL) |
+| `npm run seed` | Inserts test data into the database (users, listings, conversations, messages) |
+
+## How it works
+
+### The API (`apps/api`)
+An Express server that connects to PostgreSQL. Currently exposes one route:
+- `GET /health` → returns `{ "status": "ok" }` if the database connection is working
+
+This is the starting point to add all the application routes (users, listings, messages, etc.).
+
+### The web app (`apps/web`)
+A Next.js application. The homepage calls the API's `/health` endpoint and displays the result. This is the starting point to build the user interface (search, listings, profiles, etc.).
+
+### Shared types (`packages/shared`)
+TypeScript type definitions for the 5 database tables: `User`, `Listing`, `ListingPhoto`, `Conversation`, `Message`. Both the API and the web app import from this package so they always agree on data shapes.
+
+### Database
+PostgreSQL 16, running in Docker. The schema is managed through migrations (`npm run migrate`), not manually. The tables are:
+- **users** — students, owners, admins
+- **listings** — housing ads with rent, location, availability
+- **listing_photos** — images attached to listings
+- **conversations** — threads between two users about a listing
+- **messages** — individual messages within a conversation
+
+### Resetting the database
+If you need a fresh start:
+```bash
+docker compose down -v    # deletes the container and all data
+docker compose up -d      # recreates a blank database
+npm run migrate           # recreates the tables
+npm run seed              # reinserts test data
+```
 
 ## Project structure
 | Path | Description |
