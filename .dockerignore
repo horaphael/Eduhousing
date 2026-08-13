@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+.git
+.github
+.env
+.env.*
+!.env.example
+*.log
+dist
+build
+.next
+coverage
+docs
+README.md
+CONTRIBUTING.md
+.vscode
+.DS_Store
