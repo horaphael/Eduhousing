@@ -37,10 +37,23 @@ Web: http://localhost:3000 · API: http://localhost:3001
 ## How it works
 
 ### The API (`apps/api`)
-An Express server that connects to PostgreSQL. Currently exposes one route:
-- `GET /health` → returns `{ "status": "ok" }` if the database connection is working
+A NestJS 11 server that connects to PostgreSQL with raw SQL (pg, no ORM).
 
-This is the starting point to add all the application routes (users, listings, messages, etc.).
+**Authentication (temporary):** Send the `x-user-id` header with a valid user UUID. This will be replaced by JWT.
+
+**Routes:**
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/health` | No | Health check — returns `{ "status": "ok" }` |
+| `GET` | `/listings` | No | Published listings (newest first, max 50, with photos) |
+| `GET` | `/listings/mine` | Yes | All listings of the current user (including drafts) |
+| `GET` | `/listings/:id` | No* | Single listing (*drafts/archived visible only to author) |
+| `POST` | `/listings` | Yes | Create a listing (published by default) |
+| `PATCH` | `/listings/:id` | Yes | Update a listing (author only) |
+| `DELETE` | `/listings/:id` | Yes | Delete a listing and its photos (author only) |
+| `POST` | `/listings/:id/photos` | Yes | Upload photos (JPEG/PNG/WebP, max 5 MB, max 10 per listing) |
+| `DELETE` | `/listings/:id/photos/:photoId` | Yes | Delete a photo (author only) |
 
 ### The web app (`apps/web`)
 A Next.js application. The homepage calls the API's `/health` endpoint and displays the result. This is the starting point to build the user interface (search, listings, profiles, etc.).

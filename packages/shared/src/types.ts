@@ -39,6 +39,7 @@ export interface Listing {
   postal_code: string;
   available_from: string;
   available_until: string | null;
+  status: ListingStatus;
   dpe_grade: DpeGrade | null;
   published_at: string | null;
   created_at: string;

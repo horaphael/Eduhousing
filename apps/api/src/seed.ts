@@ -23,10 +23,10 @@ const seed = async () => {
 
     // Listings
     await client.query(`
-      INSERT INTO listings (id, author_id, title, description, housing_type, furnished, rent_cents, charges_cents, deposit_cents, surface_m2, address_line, city, postal_code, available_from, dpe_grade, published_at) VALUES
-        ('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'Studio lumineux centre-ville', 'Joli studio refait à neuf, proche fac de lettres. Idéal étudiant.', 'studio', true, 45000, 5000, 45000, 22.0, '12 rue des Étudiants', 'Montpellier', '34000', '2026-09-01', 'C', now()),
-        ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'T2 calme quartier Antigone', 'T2 avec balcon, quartier calme. Tram à 2 min.', 't2', false, 62000, 8000, 62000, 42.5, '8 allée de Mycènes', 'Montpellier', '34000', '2026-09-01', 'D', now()),
-        ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000003', 'Chambre en coloc Beaux-Arts', 'Chambre dans coloc de 3, ambiance sympa, grand salon.', 'shared_room', true, 35000, 4000, 35000, 14.0, '5 rue Embouque d''Or', 'Montpellier', '34000', '2026-10-01', 'B', now())
+      INSERT INTO listings (id, author_id, title, description, housing_type, furnished, rent_cents, charges_cents, deposit_cents, surface_m2, address_line, city, postal_code, available_from, dpe_grade, status, published_at) VALUES
+        ('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'Studio lumineux centre-ville', 'Joli studio refait à neuf, proche fac de lettres. Idéal étudiant.', 'studio', true, 45000, 5000, 45000, 22.0, '12 rue des Étudiants', 'Montpellier', '34000', '2026-09-01', 'C', 'published', now()),
+        ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'T2 calme quartier Antigone', 'T2 avec balcon, quartier calme. Tram à 2 min.', 't2', false, 62000, 8000, 62000, 42.5, '8 allée de Mycènes', 'Montpellier', '34000', '2026-09-01', 'D', 'published', now()),
+        ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000003', 'Chambre en coloc Beaux-Arts', 'Chambre dans coloc de 3, ambiance sympa, grand salon.', 'shared_room', true, 35000, 4000, 35000, 14.0, '5 rue Embouque d''Or', 'Montpellier', '34000', '2026-10-01', 'B', 'published', now())
       ON CONFLICT DO NOTHING
     `);
 
