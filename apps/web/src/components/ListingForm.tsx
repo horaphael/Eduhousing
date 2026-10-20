@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ListingPhoto } from "@eduhousing/shared";
 import { photoUrl, deletePhoto, uploadPhotos } from "@/lib/api";
 
@@ -47,6 +47,7 @@ interface Props {
     data: Record<string, unknown>,
     status: string,
   ) => Promise<string | void>;
+  onReload?: () => Promise<void>;
 }
 
 export function formDataFromListing(l: {
@@ -89,12 +90,14 @@ export default function ListingForm({
   listingId,
   isEdit = false,
   onSubmit,
+  onReload,
 }: Props) {
   const [form, setForm] = useState<ListingFormData>(initial ?? EMPTY);
   const [photos, setPhotos] = useState<ListingPhoto[]>(existingPhotos);
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function set(field: keyof ListingFormData, value: string | boolean) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -156,11 +159,27 @@ export default function ListingForm({
     setSubmitting(true);
     try {
       const payload = buildPayload();
-      const createdId = await onSubmit(payload, status);
-      // Upload new photos if any
+      const hasFields = Object.keys(payload).length > 0 || status !== "";
+      const hasFiles = files.length > 0;
+
+      if (!hasFields && !hasFiles) {
+        throw new Error("Aucune modification a enregistrer");
+      }
+
+      let createdId: string | void = undefined;
+      if (hasFields || !isEdit) {
+        createdId = await onSubmit(payload, status);
+      }
+
       const targetId = createdId || listingId;
-      if (files.length > 0 && targetId) {
+      if (hasFiles && targetId) {
         await uploadPhotos(targetId, files);
+        setFiles([]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+
+      if (onReload) {
+        await onReload();
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur inconnue");
@@ -354,6 +373,7 @@ export default function ListingForm({
       <div className="form-group">
         <label>Ajouter des photos (JPEG, PNG, WebP, max 5 Mo)</label>
         <input
+          ref={fileInputRef}
           type="file"
           accept="image/jpeg,image/png,image/webp"
           multiple

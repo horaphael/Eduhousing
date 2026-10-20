@@ -31,15 +31,16 @@ export default function ModifierPage() {
   ): Promise<void> {
     const payload = { ...data };
     if (status) payload.status = status;
-    // Remove undefined values
     for (const key of Object.keys(payload)) {
       if (payload[key] === undefined) delete payload[key];
     }
-    if (Object.keys(payload).length === 0) {
-      throw new Error("Aucune modification a enregistrer");
-    }
+    if (Object.keys(payload).length === 0) return;
     await updateListing(id, payload);
-    router.push("/mes-annonces");
+  }
+
+  async function handleReload() {
+    const updated = await fetchListing(id);
+    setListing(updated);
   }
 
   return (
@@ -52,11 +53,13 @@ export default function ModifierPage() {
       </Link>
       <h1 style={{ marginBottom: "1rem" }}>Modifier l&apos;annonce</h1>
       <ListingForm
+        key={listing.updated_at}
         isEdit
         listingId={id}
         initial={formDataFromListing(listing)}
         existingPhotos={listing.photos ?? []}
         onSubmit={handleSubmit}
+        onReload={handleReload}
       />
     </main>
   );
