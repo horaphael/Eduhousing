@@ -390,79 +390,201 @@ describe('Listings CRUD', () => {
     }
   });
 
-  // ── City search ──
+  // ── Search & Filters ──
 
-  it('GET /listings?city=montp finds Montpellier (case-insensitive partial)', async () => {
-    // Create a published listing in Montpellier
-    const { body: listing } = await request(app.getHttpServer())
+  // Helper: create a published listing with overrides, return it, and register for cleanup
+  const filterCleanupIds: string[] = [];
+
+  async function createPublished(overrides: Record<string, any> = {}) {
+    const { body } = await request(app.getHttpServer())
       .post('/listings')
       .set('x-user-id', ALICE_ID)
-      .send({ ...validListing, status: 'published' })
+      .send({ ...validListing, status: 'published', ...overrides })
       .expect(201);
+    filterCleanupIds.push(body.id);
+    return body;
+  }
 
+  afterAll(async () => {
+    for (const id of filterCleanupIds) {
+      await request(app.getHttpServer())
+        .delete(`/listings/${id}`)
+        .set('x-user-id', ALICE_ID)
+        .catch(() => {});
+    }
+  });
+
+  // City
+
+  it('city filter: partial case-insensitive match', async () => {
+    const listing = await createPublished({ city: 'Montpellier' });
     const res = await request(app.getHttpServer())
       .get('/listings?city=montp')
       .expect(200);
-
-    expect(res.body.length).toBeGreaterThanOrEqual(1);
     expect(res.body.some((l: any) => l.id === listing.id)).toBe(true);
-
-    // Cleanup
-    await request(app.getHttpServer())
-      .delete(`/listings/${listing.id}`)
-      .set('x-user-id', ALICE_ID)
-      .expect(204);
   });
 
-  it('GET /listings?city=unknowncity returns empty array', async () => {
+  it('city filter: unknown city returns empty', async () => {
     const res = await request(app.getHttpServer())
-      .get('/listings?city=unknowncity')
+      .get('/listings?city=unknowncity999')
       .expect(200);
-
     expect(res.body).toEqual([]);
   });
 
-  it('GET /listings?city= does not return drafts', async () => {
-    const { body: draft } = await request(app.getHttpServer())
-      .post('/listings')
-      .set('x-user-id', ALICE_ID)
-      .send({ ...validListing, status: 'draft', city: 'DraftCity' })
-      .expect(201);
-
-    const res = await request(app.getHttpServer())
-      .get('/listings?city=DraftCity')
-      .expect(200);
-
-    expect(res.body).toEqual([]);
-
-    // Cleanup
-    await request(app.getHttpServer())
-      .delete(`/listings/${draft.id}`)
-      .set('x-user-id', ALICE_ID)
-      .expect(204);
-  });
-
-  it('GET /listings?city=% does not match all listings', async () => {
-    const { body: listing } = await request(app.getHttpServer())
-      .post('/listings')
-      .set('x-user-id', ALICE_ID)
-      .send({ ...validListing, status: 'published', city: 'Lyon' })
-      .expect(201);
-
+  it('city filter: "%" does not match all listings', async () => {
+    const listing = await createPublished({ city: 'Lyon' });
     const res = await request(app.getHttpServer())
       .get('/listings?city=%25')
       .expect(200);
-
     expect(res.body.some((l: any) => l.id === listing.id)).toBe(false);
-
-    // Cleanup
-    await request(app.getHttpServer())
-      .delete(`/listings/${listing.id}`)
-      .set('x-user-id', ALICE_ID)
-      .expect(204);
   });
 
-  it('GET /listings rejects unknown query params', async () => {
+  it('drafts are excluded from search results', async () => {
+    const { body: draft } = await request(app.getHttpServer())
+      .post('/listings')
+      .set('x-user-id', ALICE_ID)
+      .send({ ...validListing, status: 'draft', city: 'DraftTestCity' })
+      .expect(201);
+    filterCleanupIds.push(draft.id);
+
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=DraftTestCity')
+      .expect(200);
+    expect(res.body).toEqual([]);
+  });
+
+  // Rent
+
+  it('min_rent filter', async () => {
+    const cheap = await createPublished({ rent_cents: 30000, city: 'RentCity' });
+    const expensive = await createPublished({ rent_cents: 80000, city: 'RentCity' });
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=RentCity&min_rent=500')
+      .expect(200);
+    expect(res.body.some((l: any) => l.id === expensive.id)).toBe(true);
+    expect(res.body.some((l: any) => l.id === cheap.id)).toBe(false);
+  });
+
+  it('max_rent filter', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=RentCity&max_rent=400')
+      .expect(200);
+    const ids = res.body.map((l: any) => l.id);
+    expect(ids).toContain(filterCleanupIds[filterCleanupIds.length - 2]); // cheap
+    expect(ids.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('min_rent > max_rent returns 400', async () => {
+    await request(app.getHttpServer())
+      .get('/listings?min_rent=800&max_rent=200')
+      .expect(400);
+  });
+
+  // Housing type
+
+  it('housing_type filter: single type', async () => {
+    const t2 = await createPublished({ housing_type: 't2', city: 'TypeCity' });
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=TypeCity&housing_type=t2')
+      .expect(200);
+    expect(res.body.some((l: any) => l.id === t2.id)).toBe(true);
+  });
+
+  it('housing_type filter: multiple types', async () => {
+    const studio = await createPublished({ housing_type: 'studio', city: 'TypeCity' });
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=TypeCity&housing_type=studio,t2')
+      .expect(200);
+    expect(res.body.some((l: any) => l.id === studio.id)).toBe(true);
+  });
+
+  // Furnished
+
+  it('furnished filter', async () => {
+    const furn = await createPublished({ furnished: true, city: 'FurnCity' });
+    const unfurn = await createPublished({ furnished: false, city: 'FurnCity' });
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=FurnCity&furnished=true')
+      .expect(200);
+    expect(res.body.some((l: any) => l.id === furn.id)).toBe(true);
+    expect(res.body.some((l: any) => l.id === unfurn.id)).toBe(false);
+  });
+
+  // Surface
+
+  it('min_surface filter', async () => {
+    const small = await createPublished({ surface_m2: 15, city: 'SurfCity' });
+    const big = await createPublished({ surface_m2: 45, city: 'SurfCity' });
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=SurfCity&min_surface=30')
+      .expect(200);
+    expect(res.body.some((l: any) => l.id === big.id)).toBe(true);
+    expect(res.body.some((l: any) => l.id === small.id)).toBe(false);
+  });
+
+  // Available by
+
+  it('available_by filter', async () => {
+    const early = await createPublished({ available_from: '2026-06-01', city: 'AvailCity' });
+    const late = await createPublished({ available_from: '2026-12-01', city: 'AvailCity' });
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=AvailCity&available_by=2026-09-01')
+      .expect(200);
+    expect(res.body.some((l: any) => l.id === early.id)).toBe(true);
+    expect(res.body.some((l: any) => l.id === late.id)).toBe(false);
+  });
+
+  // Sort
+
+  it('sort=price_asc returns cheapest first', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=RentCity&sort=price_asc')
+      .expect(200);
+    expect(res.body.length).toBeGreaterThanOrEqual(2);
+    expect(res.body[0].rent_cents).toBeLessThanOrEqual(res.body[1].rent_cents);
+  });
+
+  it('sort=price_desc returns most expensive first', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=RentCity&sort=price_desc')
+      .expect(200);
+    expect(res.body.length).toBeGreaterThanOrEqual(2);
+    expect(res.body[0].rent_cents).toBeGreaterThanOrEqual(res.body[1].rent_cents);
+  });
+
+  // Combined filters
+
+  it('combined filters work together', async () => {
+    const match = await createPublished({
+      city: 'ComboCity',
+      housing_type: 't1',
+      furnished: true,
+      rent_cents: 40000,
+      surface_m2: 30,
+    });
+    const noMatch = await createPublished({
+      city: 'ComboCity',
+      housing_type: 'studio',
+      furnished: false,
+      rent_cents: 90000,
+      surface_m2: 12,
+    });
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=ComboCity&housing_type=t1&furnished=true&max_rent=500&min_surface=20')
+      .expect(200);
+    expect(res.body.some((l: any) => l.id === match.id)).toBe(true);
+    expect(res.body.some((l: any) => l.id === noMatch.id)).toBe(false);
+  });
+
+  // Validation
+
+  it('invalid min_rent returns 400', async () => {
+    await request(app.getHttpServer())
+      .get('/listings?min_rent=abc')
+      .expect(400);
+  });
+
+  it('unknown query param returns 400', async () => {
     await request(app.getHttpServer())
       .get('/listings?unknown=foo')
       .expect(400);

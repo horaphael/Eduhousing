@@ -40,7 +40,7 @@ export class ListingsController {
 
   @Get()
   findAll(@Query() query: ListingsQueryDto) {
-    return this.listingsService.findPublished(query.city);
+    return this.listingsService.findPublished(query);
   }
 
   @Get('mine')

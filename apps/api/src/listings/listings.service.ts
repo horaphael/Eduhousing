@@ -11,35 +11,100 @@ import * as path from 'path';
 import { PG_POOL } from '../database/database.module';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
+import { ListingsQueryDto } from './dto/listings-query.dto';
 import { config } from '../config';
+
+const VALID_HOUSING_TYPES = ['studio', 't1', 't2', 't3_plus', 'shared_room'];
 
 @Injectable()
 export class ListingsService {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
 
-  async findPublished(city?: string) {
-    const trimmed = city?.trim();
-    if (trimmed) {
-      const escaped = trimmed
+  async findPublished(query: ListingsQueryDto) {
+    if (
+      query.min_rent !== undefined &&
+      query.max_rent !== undefined &&
+      query.min_rent > query.max_rent
+    ) {
+      throw new BadRequestException('min_rent must be less than or equal to max_rent');
+    }
+
+    const conditions: string[] = ["l.status = 'published'"];
+    const values: any[] = [];
+    let idx = 1;
+
+    // City (ILIKE with escaped special chars)
+    const trimmedCity = query.city?.trim();
+    if (trimmedCity) {
+      const escaped = trimmedCity
         .replace(/\\/g, '\\\\')
         .replace(/%/g, '\\%')
         .replace(/_/g, '\\_');
-      const { rows } = await this.pool.query(
-        `SELECT l.*,
-          COALESCE(
-            (SELECT json_agg(p ORDER BY p.position)
-             FROM listing_photos p WHERE p.listing_id = l.id),
-            '[]'::json
-          ) AS photos
-        FROM listings l
-        WHERE l.status = 'published' AND l.city ILIKE $1
-        ORDER BY l.published_at DESC NULLS LAST
-        LIMIT 50`,
-        [`%${escaped}%`],
-      );
-      return rows;
+      conditions.push(`l.city ILIKE $${idx}`);
+      values.push(`%${escaped}%`);
+      idx++;
     }
-    const { rows } = await this.pool.query(`
+
+    // Rent range (euros → cents)
+    if (query.min_rent !== undefined) {
+      conditions.push(`l.rent_cents >= $${idx}`);
+      values.push(query.min_rent * 100);
+      idx++;
+    }
+    if (query.max_rent !== undefined) {
+      conditions.push(`l.rent_cents <= $${idx}`);
+      values.push(query.max_rent * 100);
+      idx++;
+    }
+
+    // Housing type (comma-separated)
+    if (query.housing_type) {
+      const types = query.housing_type
+        .split(',')
+        .map((t) => t.trim())
+        .filter((t) => VALID_HOUSING_TYPES.includes(t));
+      if (types.length > 0) {
+        conditions.push(`l.housing_type = ANY($${idx})`);
+        values.push(types);
+        idx++;
+      }
+    }
+
+    // Furnished
+    if (query.furnished !== undefined) {
+      conditions.push(`l.furnished = $${idx}`);
+      values.push(query.furnished);
+      idx++;
+    }
+
+    // Min surface
+    if (query.min_surface !== undefined) {
+      conditions.push(`l.surface_m2 >= $${idx}`);
+      values.push(query.min_surface);
+      idx++;
+    }
+
+    // Available by
+    if (query.available_by) {
+      conditions.push(`l.available_from <= $${idx}`);
+      values.push(query.available_by);
+      idx++;
+    }
+
+    // Sort
+    let orderBy: string;
+    switch (query.sort) {
+      case 'price_asc':
+        orderBy = 'l.rent_cents ASC';
+        break;
+      case 'price_desc':
+        orderBy = 'l.rent_cents DESC';
+        break;
+      default:
+        orderBy = 'l.published_at DESC NULLS LAST';
+    }
+
+    const sql = `
       SELECT l.*,
         COALESCE(
           (SELECT json_agg(p ORDER BY p.position)
@@ -47,10 +112,11 @@ export class ListingsService {
           '[]'::json
         ) AS photos
       FROM listings l
-      WHERE l.status = 'published'
-      ORDER BY l.published_at DESC NULLS LAST
-      LIMIT 50
-    `);
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY ${orderBy}
+      LIMIT 50`;
+
+    const { rows } = await this.pool.query(sql, values);
     return rows;
   }
 

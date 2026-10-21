@@ -36,11 +36,29 @@ export async function fetchHealth(): Promise<{ status: string }> {
   return handleResponse(res);
 }
 
+export interface ListingFilters {
+  city?: string;
+  min_rent?: number;
+  max_rent?: number;
+  housing_type?: string[];
+  furnished?: boolean;
+  min_surface?: number;
+  available_by?: string;
+  sort?: string;
+}
+
 export async function fetchListings(
-  city?: string,
+  filters?: ListingFilters,
 ): Promise<ListingWithPhotos[]> {
   const params = new URLSearchParams();
-  if (city?.trim()) params.set("city", city.trim());
+  if (filters?.city?.trim()) params.set("city", filters.city.trim());
+  if (filters?.min_rent !== undefined) params.set("min_rent", String(filters.min_rent));
+  if (filters?.max_rent !== undefined) params.set("max_rent", String(filters.max_rent));
+  if (filters?.housing_type?.length) params.set("housing_type", filters.housing_type.join(","));
+  if (filters?.furnished !== undefined) params.set("furnished", String(filters.furnished));
+  if (filters?.min_surface !== undefined) params.set("min_surface", String(filters.min_surface));
+  if (filters?.available_by) params.set("available_by", filters.available_by);
+  if (filters?.sort && filters.sort !== "recent") params.set("sort", filters.sort);
   const qs = params.toString();
   const res = await fetch(`${API_URL}/listings${qs ? `?${qs}` : ""}`);
   return handleResponse(res);
