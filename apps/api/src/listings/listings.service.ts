@@ -17,7 +17,28 @@ import { config } from '../config';
 export class ListingsService {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
 
-  async findPublished() {
+  async findPublished(city?: string) {
+    const trimmed = city?.trim();
+    if (trimmed) {
+      const escaped = trimmed
+        .replace(/\\/g, '\\\\')
+        .replace(/%/g, '\\%')
+        .replace(/_/g, '\\_');
+      const { rows } = await this.pool.query(
+        `SELECT l.*,
+          COALESCE(
+            (SELECT json_agg(p ORDER BY p.position)
+             FROM listing_photos p WHERE p.listing_id = l.id),
+            '[]'::json
+          ) AS photos
+        FROM listings l
+        WHERE l.status = 'published' AND l.city ILIKE $1
+        ORDER BY l.published_at DESC NULLS LAST
+        LIMIT 50`,
+        [`%${escaped}%`],
+      );
+      return rows;
+    }
     const { rows } = await this.pool.query(`
       SELECT l.*,
         COALESCE(

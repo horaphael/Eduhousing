@@ -389,4 +389,82 @@ describe('Listings CRUD', () => {
       expect(fs.existsSync(filepath)).toBe(false);
     }
   });
+
+  // ── City search ──
+
+  it('GET /listings?city=montp finds Montpellier (case-insensitive partial)', async () => {
+    // Create a published listing in Montpellier
+    const { body: listing } = await request(app.getHttpServer())
+      .post('/listings')
+      .set('x-user-id', ALICE_ID)
+      .send({ ...validListing, status: 'published' })
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=montp')
+      .expect(200);
+
+    expect(res.body.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.some((l: any) => l.id === listing.id)).toBe(true);
+
+    // Cleanup
+    await request(app.getHttpServer())
+      .delete(`/listings/${listing.id}`)
+      .set('x-user-id', ALICE_ID)
+      .expect(204);
+  });
+
+  it('GET /listings?city=unknowncity returns empty array', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=unknowncity')
+      .expect(200);
+
+    expect(res.body).toEqual([]);
+  });
+
+  it('GET /listings?city= does not return drafts', async () => {
+    const { body: draft } = await request(app.getHttpServer())
+      .post('/listings')
+      .set('x-user-id', ALICE_ID)
+      .send({ ...validListing, status: 'draft', city: 'DraftCity' })
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=DraftCity')
+      .expect(200);
+
+    expect(res.body).toEqual([]);
+
+    // Cleanup
+    await request(app.getHttpServer())
+      .delete(`/listings/${draft.id}`)
+      .set('x-user-id', ALICE_ID)
+      .expect(204);
+  });
+
+  it('GET /listings?city=% does not match all listings', async () => {
+    const { body: listing } = await request(app.getHttpServer())
+      .post('/listings')
+      .set('x-user-id', ALICE_ID)
+      .send({ ...validListing, status: 'published', city: 'Lyon' })
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get('/listings?city=%25')
+      .expect(200);
+
+    expect(res.body.some((l: any) => l.id === listing.id)).toBe(false);
+
+    // Cleanup
+    await request(app.getHttpServer())
+      .delete(`/listings/${listing.id}`)
+      .set('x-user-id', ALICE_ID)
+      .expect(204);
+  });
+
+  it('GET /listings rejects unknown query params', async () => {
+    await request(app.getHttpServer())
+      .get('/listings?unknown=foo')
+      .expect(400);
+  });
 });

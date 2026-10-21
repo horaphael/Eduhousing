@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   Req,
   UseGuards,
   UseInterceptors,
@@ -25,6 +26,7 @@ import { CurrentUserGuard } from '../auth/current-user.guard';
 import { ListingsService } from './listings.service';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
+import { ListingsQueryDto } from './dto/listings-query.dto';
 import { config } from '../config';
 import { MulterExceptionFilter } from './multer-exception.filter';
 import * as fs from 'fs';
@@ -37,8 +39,8 @@ export class ListingsController {
   constructor(private readonly listingsService: ListingsService) {}
 
   @Get()
-  findAll() {
-    return this.listingsService.findPublished();
+  findAll(@Query() query: ListingsQueryDto) {
+    return this.listingsService.findPublished(query.city);
   }
 
   @Get('mine')

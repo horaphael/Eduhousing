@@ -36,8 +36,13 @@ export async function fetchHealth(): Promise<{ status: string }> {
   return handleResponse(res);
 }
 
-export async function fetchListings(): Promise<ListingWithPhotos[]> {
-  const res = await fetch(`${API_URL}/listings`);
+export async function fetchListings(
+  city?: string,
+): Promise<ListingWithPhotos[]> {
+  const params = new URLSearchParams();
+  if (city?.trim()) params.set("city", city.trim());
+  const qs = params.toString();
+  const res = await fetch(`${API_URL}/listings${qs ? `?${qs}` : ""}`);
   return handleResponse(res);
 }
 
