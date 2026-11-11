@@ -24,6 +24,23 @@ const SORT_OPTIONS = [
   { value: "price_desc", label: "Prix decroissant" },
 ];
 
+const POPULAR_CITIES = [
+  { name: "Montpellier", img: "https://placehold.co/400x300/1C5FA8/ffffff?text=Montpellier" },
+  { name: "Paris", img: "https://placehold.co/400x300/123A6B/ffffff?text=Paris" },
+  { name: "Lyon", img: "https://placehold.co/400x300/1C5FA8/ffffff?text=Lyon" },
+  { name: "Toulouse", img: "https://placehold.co/400x300/123A6B/ffffff?text=Toulouse" },
+  { name: "Bordeaux", img: "https://placehold.co/400x300/1C5FA8/ffffff?text=Bordeaux" },
+  { name: "Lille", img: "https://placehold.co/400x300/123A6B/ffffff?text=Lille" },
+];
+
+const HOUSING_TYPE_LABELS: Record<string, string> = {
+  studio: "Studio",
+  t1: "T1",
+  t2: "T2",
+  t3_plus: "T3+",
+  shared_room: "Colocation",
+};
+
 function filtersFromParams(sp: URLSearchParams): ListingFilters {
   const f: ListingFilters = {};
   const city = sp.get("ville");
@@ -77,7 +94,7 @@ export default function Home() {
   return (
     <Suspense
       fallback={
-        <main>
+        <main className="container">
           <p className="loading">Chargement...</p>
         </main>
       }
@@ -91,6 +108,8 @@ function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialFilters = filtersFromParams(searchParams);
+  const hasInitialFilters =
+    !!initialFilters.city || countActiveFilters(initialFilters) > 0;
 
   const [filters, setFilters] = useState<ListingFilters>(initialFilters);
   const [cityInput, setCityInput] = useState(initialFilters.city ?? "");
@@ -101,7 +120,6 @@ function HomeContent() {
   const [appliedFilters, setAppliedFilters] =
     useState<ListingFilters>(initialFilters);
 
-  // Draft filter state for the panel
   const [draftMinRent, setDraftMinRent] = useState(
     initialFilters.min_rent?.toString() ?? "",
   );
@@ -223,10 +241,17 @@ function HomeContent() {
     );
   }
 
+  function searchCity(city: string) {
+    setCityInput(city);
+    const f = { ...filters, city };
+    setFilters(f);
+    router.push(filtersToParams(f));
+    doSearch(f);
+  }
+
   const activeCount = countActiveFilters(appliedFilters);
   const hasAnyFilter = !!appliedFilters.city || activeCount > 0;
 
-  // Build badges for active filters
   const badges: { key: string; label: string }[] = [];
   if (appliedFilters.min_rent !== undefined)
     badges.push({ key: "min_rent", label: `\u2265 ${appliedFilters.min_rent} \u20ac` });
@@ -252,81 +277,130 @@ function HomeContent() {
   }
 
   return (
-    <main>
-      <h1 style={{ marginBottom: "1rem" }}>Annonces publiees</h1>
+    <>
+      {/* Hero section */}
+      {!hasInitialFilters && (
+        <section className="hero">
+          <div className="hero-bg" />
+          <div className="hero-content">
+            <div className="hero-text">
+              <p className="hero-surtitle">Logement etudiant simplifie</p>
+              <h1>Ton logement, simplifie</h1>
+              <p>
+                Cherche pres de ton campus, compare, reserve ta visite :
+                tout au meme endroit.
+              </p>
+              <form onSubmit={handleCitySearch} className="hero-search">
+                <div className="hero-search-field">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={cityInput}
+                    onChange={(e) => setCityInput(e.target.value)}
+                    placeholder="Ville ou campus"
+                  />
+                </div>
+                <button type="submit" className="hero-search-btn">
+                  Rechercher
+                </button>
+              </form>
+            </div>
+          </div>
+        </section>
+      )}
 
-      {/* Search bar */}
-      <div className="search-bar">
-        <form onSubmit={handleCitySearch} className="search-row">
-          <input
-            type="text"
-            value={cityInput}
-            onChange={(e) => setCityInput(e.target.value)}
-            placeholder="Ex : Montpellier"
-            className="search-input"
-          />
-          <button type="submit" className="btn btn-orange">
-            Rechercher
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => setFiltersOpen((o) => !o)}
-          >
-            Filtres{activeCount > 0 ? ` (${activeCount})` : ""}
-          </button>
-          {hasAnyFilter && (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={resetAll}
-            >
-              Reinitialiser
-            </button>
-          )}
-        </form>
+      <main className="container">
+        {/* Search bar (visible when filters active) */}
+        {hasInitialFilters && (
+          <div className="search-section">
+            <form onSubmit={handleCitySearch} className="search-bar">
+              <div className="search-input-wrap">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  type="text"
+                  value={cityInput}
+                  onChange={(e) => setCityInput(e.target.value)}
+                  placeholder="Rechercher une ville..."
+                  className="search-input"
+                />
+              </div>
+              <button type="submit" className="btn btn-primary">
+                Rechercher
+              </button>
+              <button
+                type="button"
+                className="btn btn-filter"
+                onClick={() => setFiltersOpen((o) => !o)}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="6" x2="20" y2="6" />
+                  <line x1="8" y1="12" x2="20" y2="12" />
+                  <line x1="12" y1="18" x2="20" y2="18" />
+                </svg>
+                Filtres{activeCount > 0 ? ` (${activeCount})` : ""}
+              </button>
+              {hasAnyFilter && (
+                <button type="button" className="btn btn-ghost" onClick={resetAll}>
+                  Reinitialiser
+                </button>
+              )}
+            </form>
+          </div>
+        )}
 
         {/* Filter panel */}
         {filtersOpen && (
           <div className="filter-panel">
-            <div className="form-row">
-              <div className="form-group">
-                <label>Loyer min (&euro;)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={draftMinRent}
-                  onChange={(e) => setDraftMinRent(e.target.value)}
-                />
-              </div>
-              <div className="form-group">
-                <label>Loyer max (&euro;)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={draftMaxRent}
-                  onChange={(e) => setDraftMaxRent(e.target.value)}
-                />
-              </div>
+            <div className="filter-panel-header">
+              <h3>Filtres</h3>
+              <button className="filter-close" onClick={() => setFiltersOpen(false)}>&times;</button>
             </div>
-
-            <div className="form-group">
-              <label>Type de logement</label>
-              <div className="checkbox-group">
-                {HOUSING_TYPES.map((h) => (
-                  <label key={h.value} className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={draftTypes.includes(h.value)}
-                      onChange={() => toggleType(h.value)}
-                    />
-                    {h.label}
-                  </label>
-                ))}
+            <div className="filter-grid">
+              <div className="form-group">
+                <label>Loyer min</label>
+                <div className="input-suffix">
+                  <input
+                    type="number"
+                    min="0"
+                    value={draftMinRent}
+                    onChange={(e) => setDraftMinRent(e.target.value)}
+                    placeholder="0"
+                  />
+                  <span>&euro;/mois</span>
+                </div>
               </div>
-            </div>
-
-            <div className="form-row">
+              <div className="form-group">
+                <label>Loyer max</label>
+                <div className="input-suffix">
+                  <input
+                    type="number"
+                    min="0"
+                    value={draftMaxRent}
+                    onChange={(e) => setDraftMaxRent(e.target.value)}
+                    placeholder="2000"
+                  />
+                  <span>&euro;/mois</span>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Surface min</label>
+                <div className="input-suffix">
+                  <input
+                    type="number"
+                    min="0"
+                    value={draftMinSurface}
+                    onChange={(e) => setDraftMinSurface(e.target.value)}
+                    placeholder="0"
+                  />
+                  <span>m&sup2;</span>
+                </div>
+              </div>
               <div className="form-group">
                 <label>Meuble</label>
                 <select
@@ -338,18 +412,25 @@ function HomeContent() {
                   <option value="false">Non</option>
                 </select>
               </div>
-              <div className="form-group">
-                <label>Surface min (m&sup2;)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={draftMinSurface}
-                  onChange={(e) => setDraftMinSurface(e.target.value)}
-                />
+            </div>
+
+            <div className="form-group">
+              <label>Type de logement</label>
+              <div className="type-chips">
+                {HOUSING_TYPES.map((h) => (
+                  <button
+                    key={h.value}
+                    type="button"
+                    className={`chip ${draftTypes.includes(h.value) ? "chip-active" : ""}`}
+                    onClick={() => toggleType(h.value)}
+                  >
+                    {h.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="form-row">
+            <div className="filter-grid">
               <div className="form-group">
                 <label>Disponible avant le</label>
                 <input
@@ -373,13 +454,11 @@ function HomeContent() {
               </div>
             </div>
 
-            <button
-              type="button"
-              className="btn btn-orange"
-              onClick={applyFilters}
-            >
-              Appliquer
-            </button>
+            <div className="filter-actions">
+              <button type="button" className="btn btn-primary" onClick={applyFilters}>
+                Appliquer les filtres
+              </button>
+            </div>
           </div>
         )}
 
@@ -389,78 +468,190 @@ function HomeContent() {
             {badges.map((b) => (
               <span key={b.key} className="filter-badge">
                 {b.label}
-                <button
-                  type="button"
-                  onClick={() => removeFilter(b.key)}
-                  title="Retirer"
-                >
+                <button type="button" onClick={() => removeFilter(b.key)} title="Retirer">
                   &times;
                 </button>
               </span>
             ))}
           </div>
         )}
-      </div>
 
-      {/* Results */}
-      {loading ? (
-        <p className="loading">Chargement...</p>
-      ) : error ? (
-        <div className="error-box">{error}</div>
-      ) : (
-        <>
-          {hasAnyFilter && (
-            <p style={{ marginBottom: "1rem" }}>
-              {listings.length > 0
-                ? `${listings.length} annonce${listings.length > 1 ? "s" : ""}${appliedFilters.city ? ` a ${appliedFilters.city}` : ""}`
-                : "Aucune annonce ne correspond a ta recherche."}
-              {listings.length === 0 && (
-                <>
-                  {" "}
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    onClick={resetAll}
-                  >
-                    Reinitialiser les filtres
-                  </button>
-                </>
-              )}
-            </p>
-          )}
-          {!hasAnyFilter && listings.length === 0 && (
-            <p>Aucune annonce pour le moment.</p>
-          )}
-          {listings.length > 0 && (
-            <div className="listings-grid">
-              {listings.map((l) => {
-                const photo = (l.photos ?? [])[0];
-                return (
-                  <Link
-                    href={`/annonces/${l.id}`}
-                    key={l.id}
-                    className="listing-card"
-                    style={{ color: "inherit", textDecoration: "none" }}
-                  >
-                    {photo ? (
-                      <img src={photoUrl(photo.url)} alt={l.title} />
-                    ) : (
-                      <div className="no-photo-placeholder">Pas de photo</div>
-                    )}
-                    <div className="card-body">
-                      <h3>{l.title}</h3>
-                      <span className="price">
-                        {(l.rent_cents / 100).toFixed(0)} &euro;/mois
-                      </span>
-                      <br />
-                      <span className="city">{l.city}</span>
-                    </div>
-                  </Link>
-                );
-              })}
+        {/* Results */}
+        {loading ? (
+          <div className="loading-section">
+            <div className="spinner" />
+            <p>Chargement des annonces...</p>
+          </div>
+        ) : error ? (
+          <div className="error-box">{error}</div>
+        ) : (
+          <>
+            {hasAnyFilter && (
+              <div className="results-header">
+                <h2>
+                  {listings.length > 0
+                    ? `${listings.length} logement${listings.length > 1 ? "s" : ""}${appliedFilters.city ? ` a ${appliedFilters.city}` : ""}`
+                    : "Aucun resultat"}
+                </h2>
+                {listings.length === 0 && (
+                  <p className="no-results-text">
+                    Essayez d&apos;elargir vos criteres de recherche.{" "}
+                    <button className="link-btn" onClick={resetAll}>
+                      Reinitialiser les filtres
+                    </button>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {!hasAnyFilter && listings.length > 0 && (
+              <div className="section-header">
+                <h2>Annonces recentes</h2>
+                <p>Decouvre les derniers logements disponibles</p>
+              </div>
+            )}
+
+            {listings.length > 0 && (
+              <div className="listings-grid">
+                {listings.map((l) => {
+                  const photo = (l.photos ?? [])[0];
+                  return (
+                    <Link
+                      href={`/annonces/${l.id}`}
+                      key={l.id}
+                      className="listing-card"
+                    >
+                      <div className="card-img-wrap">
+                        {photo ? (
+                          <img src={photoUrl(photo.url)} alt={l.title} />
+                        ) : (
+                          <div className="no-photo">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                              <circle cx="8.5" cy="8.5" r="1.5" />
+                              <polyline points="21 15 16 10 5 21" />
+                            </svg>
+                          </div>
+                        )}
+                        <span className="card-type-badge">
+                          {HOUSING_TYPE_LABELS[l.housing_type] || l.housing_type}
+                        </span>
+                        {l.furnished && <span className="card-furnished-badge">Meuble</span>}
+                      </div>
+                      <div className="card-body">
+                        <h3 className="card-title">{l.title}</h3>
+                        <p className="card-location">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                            <circle cx="12" cy="10" r="3" />
+                          </svg>
+                          {l.city}
+                        </p>
+                        <div className="card-details">
+                          {l.surface_m2 && <span>{l.surface_m2} m&sup2;</span>}
+                          {l.charges_cents > 0 && (
+                            <span>+ {(l.charges_cents / 100).toFixed(0)} &euro; charges</span>
+                          )}
+                          {l.dpe_grade && <span>DPE {l.dpe_grade}</span>}
+                        </div>
+                        <div className="card-price-row">
+                          <div className="card-price">
+                            {(l.rent_cents / 100).toFixed(0)} &euro;
+                            <span> /mois</span>
+                          </div>
+                          <span className="card-cta">Voir l&apos;annonce</span>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+
+            {!hasAnyFilter && listings.length === 0 && (
+              <div className="empty-state">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+                <h3>Aucune annonce pour le moment</h3>
+                <p>Sois le premier a publier une annonce !</p>
+                <Link href="/publier" className="btn btn-accent">
+                  Publier une annonce
+                </Link>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Popular cities (homepage without filters) */}
+        {!hasInitialFilters && !loading && (
+          <section className="cities-section">
+            <div className="section-header">
+              <h2>Villes etudiantes populaires</h2>
+              <p>Explore les logements dans les grandes villes universitaires</p>
             </div>
-          )}
-        </>
-      )}
-    </main>
+            <div className="cities-grid">
+              {POPULAR_CITIES.map((city) => (
+                <button
+                  key={city.name}
+                  className="city-card"
+                  onClick={() => searchCity(city.name)}
+                >
+                  <img src={city.img} alt={city.name} />
+                  <div className="city-card-overlay">
+                    <span>{city.name}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* How it works (homepage) */}
+        {!hasInitialFilters && !loading && (
+          <section className="how-section">
+            <div className="section-header">
+              <h2>Comment ca marche</h2>
+              <p>Trouve ton logement en 3 etapes simples</p>
+            </div>
+            <div className="steps-grid">
+              <div className="step-card">
+                <div className="step-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </div>
+                <p className="step-number">01</p>
+                <h3>Recherche</h3>
+                <p>Parcours les annonces par ville, type de logement et budget.</p>
+              </div>
+              <div className="step-card">
+                <div className="step-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </div>
+                <p className="step-number">02</p>
+                <h3>Contacte</h3>
+                <p>Echange directement avec le proprietaire via la messagerie.</p>
+              </div>
+              <div className="step-card">
+                <div className="step-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                </div>
+                <p className="step-number">03</p>
+                <h3>Emmenage</h3>
+                <p>Signe ton bail en toute confiance et installe-toi.</p>
+              </div>
+            </div>
+          </section>
+        )}
+      </main>
+    </>
   );
 }

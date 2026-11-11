@@ -22,12 +22,12 @@ import { diskStorage } from 'multer';
 import { Request } from 'express';
 import { randomUUID } from 'crypto';
 import * as path from 'path';
-import { CurrentUserGuard } from '../auth/current-user.guard';
+import { CurrentUserGuard } from '../../common/guards/current-user.guard';
 import { ListingsService } from './listings.service';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingsQueryDto } from './dto/listings-query.dto';
-import { config } from '../config';
+import { config } from '../../config';
 import { MulterExceptionFilter } from './multer-exception.filter';
 import * as fs from 'fs';
 

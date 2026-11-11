@@ -1,6 +1,6 @@
 /**
  * Temporary authentication guard — reads x-user-id header.
- * Will be replaced by JWT-based authentication.
+ * Will be replaced by JWT-based authentication (Dev R).
  */
 import {
   CanActivate,
@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { Pool } from 'pg';
-import { PG_POOL } from '../database/database.module';
+import { PG_POOL } from '../../database/database.module';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

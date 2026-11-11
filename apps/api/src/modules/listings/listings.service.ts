@@ -8,11 +8,11 @@ import {
 import { Pool } from 'pg';
 import * as fs from 'fs';
 import * as path from 'path';
-import { PG_POOL } from '../database/database.module';
+import { PG_POOL } from '../../database/database.module';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingsQueryDto } from './dto/listings-query.dto';
-import { config } from '../config';
+import { config } from '../../config';
 
 const VALID_HOUSING_TYPES = ['studio', 't1', 't2', 't3_plus', 'shared_room'];
 

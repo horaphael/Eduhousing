@@ -5,6 +5,9 @@ export type HousingType = "studio" | "t1" | "t2" | "t3_plus" | "shared_room";
 export type HandoverType = "lease_transfer" | "sublet" | "new_lease";
 export type ListingStatus = "draft" | "published" | "rented" | "archived";
 export type DpeGrade = "A" | "B" | "C" | "D" | "E" | "F" | "G";
+export type ApplicationStatus = "pending" | "accepted" | "rejected" | "cancelled";
+export type ReportStatus = "pending" | "reviewed" | "dismissed";
+export type ReportReason = "fake" | "inappropriate" | "duplicate" | "scam" | "other";
 
 // ── Tables ──
 
@@ -71,5 +74,30 @@ export interface Message {
   sender_id: string;
   body: string;
   read_at: string | null;
+  created_at: string;
+}
+
+// ── New tables (Dev J + Dev L) ──
+
+export interface Application {
+  id: string;
+  listing_id: string;
+  applicant_id: string;
+  message: string | null;
+  status: ApplicationStatus;
+  responded_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Report {
+  id: string;
+  listing_id: string;
+  reporter_id: string;
+  reason: ReportReason;
+  description: string | null;
+  status: ReportStatus;
+  admin_id: string | null;
+  resolved_at: string | null;
   created_at: string;
 }
